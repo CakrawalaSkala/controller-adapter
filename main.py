@@ -5,11 +5,11 @@ import vgamepad as vg
 
 
 # Config
-SERIAL_PORT = 'COM20'
+SERIAL_PORT = 'COM3'
 BAUD_RATE = 115200
-UPDATE_RATE = 1000 # makin kecil makin responsif, tapi jitter
+UPDATE_RATE = 2000 # makin kecil makin responsif, tapi jitter
 
-# Sensitivity (1-500) semakin kecil, semakin sensitif
+# Sensitivity (1-992) semakin kecil, semakin sensitif
 ROLL_SENSITIVITY = 500
 PITCH_SENSITIVITY = 500
 YAW_SENSITIVITY = 500
@@ -41,16 +41,19 @@ throttle = 0
 data_count = 0
 failed_count = 0
 
-ROLL_MIN = 1500 - ROLL_SENSITIVITY
-ROLL_MAX = 1500 + ROLL_SENSITIVITY
-PITCH_MIN = 1500 - PITCH_SENSITIVITY
-PITCH_MAX = 1500 + PITCH_SENSITIVITY
-YAW_MIN = 1500 - YAW_SENSITIVITY
-YAW_MAX = 1500 + YAW_SENSITIVITY
-THROTTLE_MIN = 1500 - THROTTLE_SENSITIVITY
-THROTTLE_MAX = 1500 + THROTTLE_SENSITIVITY
+CENTER = 992
+
+ROLL_MIN = CENTER - ROLL_SENSITIVITY
+ROLL_MAX = CENTER + ROLL_SENSITIVITY
+PITCH_MIN = CENTER - PITCH_SENSITIVITY
+PITCH_MAX = CENTER + PITCH_SENSITIVITY
+YAW_MIN = CENTER - YAW_SENSITIVITY
+YAW_MAX = CENTER + YAW_SENSITIVITY
+THROTTLE_MIN = CENTER - THROTTLE_SENSITIVITY
+THROTTLE_MAX = CENTER + THROTTLE_SENSITIVITY
 
 def process_data(raw):
+    global last_update, roll, pitch, yaw, throttle, data_count, failed_count
     current_time = time.time_ns() // 1000  # Convert to microseconds
 
     data = re.split(r'[a-z]', raw)
@@ -63,16 +66,22 @@ def process_data(raw):
 
         roll += parse_value(float(data[1]), ROLL_MIN, ROLL_MAX, -1, 1)
         pitch += parse_value(float(data[2]), PITCH_MIN, PITCH_MAX, 1, -1)
-        yaw += parse_value (float(data[3]), YAW_MIN, YAW_MAX, -1, 1)
-        throttle += parse_value(float(data[4]), THROTTLE_MIN, THROTTLE_MAX, -1, 1)
+        throttle += parse_value(float(data[3]), THROTTLE_MIN, THROTTLE_MAX, -1, 1)
+        yaw += parse_value (float(data[4]), YAW_MIN, YAW_MAX, -1, 1)
 
     if current_time - last_update >= UPDATE_RATE:
         if failed_count == data_count:
             gamepad.right_joystick_float(0, 0)
             gamepad.left_joystick_float(0, 0.8)
-        else:
-            gamepad.right_joystick_float(roll / data_count, pitch / data_count)
-            gamepad.left_joystick_float(yaw / data_count, throttle / data_count)
+        elif data_count> 0:
+            roll /= data_count
+            pitch /= data_count
+            yaw /= data_count
+            throttle /= data_count
+
+            print(f"Roll: {roll}, Pitch: {pitch}, Yaw: {yaw}, Throttle: {throttle}")
+            gamepad.right_joystick_float(roll, pitch)
+            gamepad.left_joystick_float(yaw, throttle)
 
         data_count = 0
         failed_count = 0
